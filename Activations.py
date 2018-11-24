@@ -39,21 +39,17 @@ class Layer:
     
     def InitializeWeights(self, NeuronsPrevLayer):
         
-        print(NeuronsPrevLayer)
         bound = np.sqrt(1.55/NeuronsPrevLayer)
         
         self.Weights = np.random.uniform(
                 -bound, bound,
                 [self.NeuronCount, NeuronsPrevLayer]
             )
-        print(self.Weights.shape)
         self.Biases = np.random.uniform(
                 -bound, bound,
                 [1, self.NeuronCount]
             )
         
-        
-    
 class Graph:
     
     def __init__(self, InputDim, OutputDim, *args):
@@ -61,27 +57,31 @@ class Graph:
         self.InputDim = InputDim
         self.OutputDim = OutputDim
         
+        self.Input = np.zeros(InputDim)
         self.Output = np.zeros(OutputDim)
         self.Graph = [self.Input]
-        for arg in args:
+        for i, arg in enumerate(args):
+            #We need to make sure that the arguments are unique, otherwise Python will 
+            #append too many 
             self.Graph.append(arg)
+            if i >= 1:
+                assert arg not in args[0:i]
+                    
             
         self.Graph.append(self.Output)
         self.WeightInitializer()
-        
             
     def WeightInitializer(self):
-        
-        for i in range(2, len(g.Graph) - 1):
+
+        self.Graph[1].InitializeWeights(self.InputDim) 
+        for i in range(2, len(self.Graph) - 1):
             
             neurons_prev = self.Graph[i - 1].NeuronCount
-            print(neurons_prev)
             self.Graph[i].InitializeWeights(neurons_prev)
-            
-        self.Graph[1].InitializeWeights(self.InputDim)
         
 if __name__ == '__main__':
     
-    l = Layer(64, Activation.ReLU)
-    
-    #g = Graph(5, 5, l, l, l, l, l, l, l)
+    l = Layer(12, Activation.ReLU)
+    t = Layer(12, Activation.ReLU)
+    p = Layer(12, Activation.ReLU)
+    g = Graph(5, 5, l, t)
