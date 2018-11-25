@@ -2,8 +2,12 @@ import numpy as np
 
 class util:
     
-    def MakeOneHot(arr):
-        pass
+    def MakeOneHot(arr, num_classes):
+        
+        assert num_classes > np.max(arr)
+        one_hot_vec = np.zeros([len(arr), num_classes])
+        one_hot_vec[np.arange(len(arr)), arr] = 1
+        return one_hot_vec
        
 class Loss:
     
@@ -48,9 +52,13 @@ class Activation:
             
         return arr
         
-    def Linear(arr, grad = False):
+    def Linear(arr, input_size = -1, grad = False):
         
-        return arr
+        if not grad:
+            return arr
+        #else:
+        #   return np.
+        
         
 class CostFunc:
     
@@ -146,9 +154,8 @@ class Graph:
         
     def RunBackpropStep(self, label, learning_rate):
         
-        input = self.Input
-        output = self.RunInferenceStep(arr)
-        
+        output = self.Graph[self.NumLayers - 1].Output
+        input = self.Input        
         grad_weights, grad_biases = Loss.CrossEntropy(output[0], label,\
         self.Graph[self.NumLayers - 1].Weights.shape[1], grad = True)
         
@@ -167,8 +174,6 @@ class Graph:
         #self.Graph[self.NumLayers - 1].Biases -\
         #grad_biases*learning_rate
         
-        
-
 if __name__ == '__main__':
     
     a = Layer(12, Activation.ReLU, 'Dense')
@@ -178,6 +183,7 @@ if __name__ == '__main__':
     
     g = Graph(5, output, a, b, c)
     
+    g.RunInferenceStep(np.array([1, 2, 3, 4, 5]))
     g.RunInferenceStep(np.array([1, 2, 3, 4, 5]))
     g.RunBackpropStep(np.array([0, 0, 0, 1, 0]), 1e-4)
     
