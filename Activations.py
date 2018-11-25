@@ -29,8 +29,9 @@ class Loss:
             
             grad[0:len(Pred), i] = Pred
         grad[idx] -= 1
-            
-        return grad
+        
+        #Also return updates on Bias
+        return grad, grad[:, 0]
         
     
 class Activation:
@@ -109,9 +110,9 @@ class Graph:
         self.InputDim = InputDim
         self.OutputDim = Output.NeuronCount
         
-        self.Input = np.zeros(InputDim)
+        #self.Input = np.zeros(InputDim)
         
-        self.Graph = [self.Input]
+        self.Graph = []
         for i, arg in enumerate(args):
             
             #We need to make sure that the arguments are unique, otherwise Python will 
@@ -119,40 +120,55 @@ class Graph:
             self.Graph.append(arg)
             assert arg not in args[0:i]
             
+        self.NumLayers = i + 2
+            
         self.Graph.append(self.Output)
         self.WeightInitializer()
             
     def WeightInitializer(self):
 
-        self.Graph[1].InitializeWeights(self.InputDim) 
-        for i in range(2, len(self.Graph)):
+        self.Graph[0].InitializeWeights(self.InputDim) 
+        for i in range(1, self.NumLayers):
             
             neurons_prev = self.Graph[i - 1].NeuronCount
             self.Graph[i].InitializeWeights(neurons_prev)
             
-    def RunInferenceStep(self, arr):
-    
+    def RunInferenceStep(self, input):
         
-        self.Graph[1].Output = self.Graph[1].Activation(np.dot(self.Graph[1].Weights, arr) + self.Graph[1].Biases)
+        self.Input = input
+        self.Graph[0].Output = self.Graph[0].Activation(np.dot(self.Graph[0].Weights, input) + self.Graph[0].Biases)
         
-        for i in range(2, len(self.Graph)):
+        for i in range(1, self.NumLayers):
             self.Graph[i].Output = self.Graph[i].Activation(np.dot(self.Graph[i].Weights,\
             self.Graph[i - 1].Output[0]) + self.Graph[i].Biases)
             
-        return self.Graph[len(self.Graph) - 1].Output
+        return self.Graph[self.NumLayers - 1].Output
         
-    def RunBackpropStep(self, arr, label, learning_rate):
+    def RunBackpropStep(self, label, learning_rate):
         
+        input = self.Input
         output = self.RunInferenceStep(arr)
         
+        grad_weights, grad_biases = Loss.CrossEntropy(output[0], label,\
+        self.Graph[self.NumLayers - 1].Weights.shape[1], grad = True)
         
-        grad = Loss.CrossEntropy(output[0], label,\
-        self.Graph[len(self.Graph) - 1].Weights.shape[1], True)
-        self.Graph[len(self.Graph) - 1].Weights - learning_rate*grad
+        out = self.Graph[self.NumLayers - 2].Output
+        shape_output = self.Graph[self.NumLayers - 1].Weights.shape
+        output = np.zeros(shape_output)
+        
+        for i in range(shape_output[0]):
+            output[i, 0:shape_output[1]] = out
+        
+        self.Graph[self.NumLayers - 1].Weights = \
+        self.Graph[self.NumLayers - 1].Weights -\
+        grad_weights*output*learning_rate
+        
+        #self.Graph[self.NumLayers - 1].Biases = \
+        #self.Graph[self.NumLayers - 1].Biases -\
+        #grad_biases*learning_rate
         
         
-    
-        
+
 if __name__ == '__main__':
     
     a = Layer(12, Activation.ReLU, 'Dense')
@@ -162,5 +178,6 @@ if __name__ == '__main__':
     
     g = Graph(5, output, a, b, c)
     
-    g.RunBackpropStep(np.array([1, 2, 3, 4, 5]), np.array([0, 0, 0, 1, 0]), 0.01)
+    g.RunInferenceStep(np.array([1, 2, 3, 4, 5]))
+    g.RunBackpropStep(np.array([0, 0, 0, 1, 0]), 1e-4)
     
