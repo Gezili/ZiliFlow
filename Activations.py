@@ -19,7 +19,7 @@ class Loss:
     and gradation
     '''
         
-    def CrossEntropy(Pred, Label, input_size = -1, grad = False):
+    def CrossEntropyWithSoftmax(Pred, Label, input_size = -1, grad = False):
         
         idx = Label.argmax()
         
@@ -43,21 +43,26 @@ class Activation:
     '''
     Perform multiplication in-place 
     '''
-    def ReLU(arr, grad = False):
+    def ReLU(arr, input_size = -1, grad = False):
         
         #Set gradative to 0 at x = 0 for sparser matrix
         arr = np.maximum(arr, 0, arr)
-        if grad:
+        if not grad:
+            return arr
+        else:
             arr[arr > 0] = 1
-            
-        return arr
+            grad = np.zeros([len(arr), input_size])
+            for i in range(input_size):
+                grad[0:len(arr), i] = arr
+                
+            return grad, grad[:, 0]
         
     def Linear(arr, input_size = -1, grad = False):
         
         if not grad:
             return arr
-        #else:
-        #   return np.
+        else:
+           return np.ones([len(arr), input_size]), np.ones(len(arr))
         
         
 class CostFunc:
@@ -78,9 +83,10 @@ class Optimizer:
 
 class Layer:
     
-    def __init__(self, Neurons, Activation, Type):
+    def __init__(self, Neurons, Activation, Type, **kwargs):
         
         assert Type is 'Dense' or 'Output'
+            
         
         self.Activation = Activation
         self.Neurons = np.zeros(Neurons)
@@ -132,6 +138,7 @@ class Graph:
             
         self.Graph.append(self.Output)
         self.WeightInitializer()
+        
             
     def WeightInitializer(self):
 
@@ -154,25 +161,37 @@ class Graph:
         
     def RunBackpropStep(self, label, learning_rate):
         
-        output = self.Graph[self.NumLayers - 1].Output
-        input = self.Input        
-        grad_weights, grad_biases = Loss.CrossEntropy(output[0], label,\
-        self.Graph[self.NumLayers - 1].Weights.shape[1], grad = True)
-        
-        out = self.Graph[self.NumLayers - 2].Output
-        shape_output = self.Graph[self.NumLayers - 1].Weights.shape
-        output = np.zeros(shape_output)
-        
-        for i in range(shape_output[0]):
-            output[i, 0:shape_output[1]] = out
-        
-        self.Graph[self.NumLayers - 1].Weights = \
-        self.Graph[self.NumLayers - 1].Weights -\
-        grad_weights*output*learning_rate
-        
-        #self.Graph[self.NumLayers - 1].Biases = \
-        #self.Graph[self.NumLayers - 1].Biases -\
-        #grad_biases*learning_rate
+        for i in range(self.NumLayers - 1, 0, -1):
+           
+            output = self.Graph[i].Output
+            input = self.Input
+            if self.Graph[i].Type is 'Output':        
+                grad_weights, grad_biases = Loss.CrossEntropyWithSoftmax(output[0], label,\
+                self.Graph[i].Weights.shape[1], grad = True)
+            else:
+                grad_weights, grad_biases = self.Graph[i].Activation(output[0],\
+                self.Graph[i].Weights.shape[1], grad = True)
+            
+            if i is not 0:
+                out = self.Graph[i - 1].Output
+            else:
+                out = self.Input
+            
+            shape_output = self.Graph[i].Weights.shape
+            output = np.zeros(shape_output)
+            
+            for j in range(shape_output[0]):
+                output[j, 0:shape_output[1]] = out
+            
+            self.Graph[i].Weights = \
+            self.Graph[i].Weights -\
+            grad_weights*output*learning_rate
+            
+            
+            if self.Graph[i] is not 'Output':
+                self.Graph[i].Biases = \
+                self.Graph[i].Biases -\
+                grad_biases*learning_rate
         
 if __name__ == '__main__':
     
@@ -182,8 +201,14 @@ if __name__ == '__main__':
     output = Layer(5, CostFunc.Softmax, 'Output')
     
     g = Graph(5, output, a, b, c)
+
+    for i in range(10000):
+        
+        num = np.random.randint(0, 4)
+        arr = np.zeros(5)
+        arr[num] = 1
+        g.RunInferenceStep(arr)
+        g.RunBackpropStep(arr, 1e-3)
     
-    g.RunInferenceStep(np.array([1, 2, 3, 4, 5]))
-    g.RunInferenceStep(np.array([1, 2, 3, 4, 5]))
-    g.RunBackpropStep(np.array([0, 0, 0, 1, 0]), 1e-4)
+    print(g.Graph[g.NumLayers - 1].Output)
     
