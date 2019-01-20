@@ -207,8 +207,10 @@ class KNN:
     #Distance metric can be defined individually as well
     def __init__(self, Data, Labels, K, DistanceMetric):
         
+        if type(Labels) is np.ndarray:
+            Labels = Labels.tolist()
         assert type(Labels) is list
-        assert len(Labels) is len(Data)
+        assert len(Labels) == len(Data)
         assert type(K) is int
         
         if type(Data) is not np.ndarray:
@@ -216,6 +218,7 @@ class KNN:
         self.Data = Data
         self.K = K
         self.DistanceMetric = DistanceMetric
+        self.Labels = Labels
         
     def AddDataPoint(self, Datapoint, Label):
         
@@ -235,7 +238,7 @@ class KNN:
             except:
                 self.Data = np.append(self.Data, np.expand_dims(Datapoint, axis = 0), axis = 0)
                 
-    def Classification(self, to_classify)
+    def Classify(self, to_classify):
     
         closest_pairs = np.ones(self.K)*np.inf
         labels = []
@@ -246,22 +249,28 @@ class KNN:
         
         for i, datum in enumerate(self.Data):
             
-            if distance_metric is 'Euclidean' or 'L2':
-                distance = DistanceMetric_L2(datum, to_classify)
+            if self.DistanceMetric is 'Euclidean' or 'L2':
+                distance = self.DistanceMetric_L2(datum, to_classify)
+           
             if distance < largest_dist:
                 idx = np.argmax(closest_pairs)
-                closest_pairs[np.argmax(idx)] = distance
+                closest_pairs[idx] = distance
                 labels[idx] = self.Labels[i]
                 largest_dist = np.max(closest_pairs)
-                
+                    
+        print(labels)
+        print(closest_pairs)
         return max(labels,key = labels.count)
     
-
-    def DistanceMetric_L2(Point, Classifier):
-        return np.sqrt(np.sum((a - b)**2))
+    def DistanceMetric_L2(self, Point, Classifier):
+  
+        #We don't actually need to squareroot it - all we care about is the ordering,
+        #so exact numbers are not necessary. This saves computation
+        return np.sum(np.square(Point - Classifier))
 
 if __name__ == '__main__':
     
+    '''
     a = Layer(6, Activation.ReLU, 'Dense')
     b = Layer(6, Activation.ReLU, 'Dense')
     c = Layer(6, Activation.Linear, 'Linear ')
@@ -279,3 +288,6 @@ if __name__ == '__main__':
         g.RunBackpropStep(np.array(arr), 1e-3)
     
     print(g.Graph[g.NumLayers - 1].Output)
+    '''
+    
+    from data_utils import *
